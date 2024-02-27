@@ -415,3 +415,178 @@ ggplot(df, aes(x = x, y = y, label = round(probs, 2))) +
         panel.grid = element_blank(),
         plot.margin = margin(1, 1, 1, 1, "cm")) +
   coord_fixed()
+
+###################################################
+# 2/26/2024
+
+# Load packages
+library(tidyverse)
+library(pracma)
+
+# Create functions needed (will source these)
+
+# Define a function to generate a random vector of colors
+generate_color_vector <- function(size, colors) {
+
+  # Create a size^2 vector filled with a random sample of colors from a color list
+  color_vector <- sample(x = colors,
+                         size = size * size,   # "size" is the # of squares on each side
+                         replace = TRUE)
+
+  return(color_vector)
+}
+
+# Create function that calculates probabilities based on circuits
+get_prob_vector <- function(circuits){
+
+  first10perc <- seq(0, 0.02857143, length.out = round(circuits*.10)+1) # 3
+
+  last90perc_length <- circuits - length(first10perc)
+
+  last10perc_length <- round(last90perc_length * (1/9)) # 2
+
+  middle80perc_length <- last90perc_length - last10perc_length # 15
+
+  middle80perc <- seq(0.02857143, 1, length.out = middle80perc_length+2)[-c(1, middle80perc_length+2)]
+
+  last10perc <- rep(1, last10perc_length)
+
+  prob_vector <- c(first10perc, middle80perc, last10perc)
+
+  return(prob_vector)
+}
+
+# Create function that builds the prob matrix
+get_prob_matrix <- function(size, prob_vector){
+
+  # Calculate quad size same way as circuits
+  quad_size <- ifelse(size %% 2 == 0, size/2, (size+1)/2)
+
+  # Create empty matrix for the quad
+  M <- matrix(0, nrow = quad_size, ncol = quad_size)
+
+  # For loop to assign prob_vector to correct cells in quadrant
+  for (i in 1:quad_size){
+
+    M[i, i:quad_size] <- prob_vector[i]
+    M[i:quad_size, i] <- prob_vector[i]
+  }
+
+  # if size is even,
+  if(size %% 2 == 0){
+    # mirror horizontally and column bind
+    M_right <- pracma::fliplr(M)
+    M <- cbind(M, M_right)
+
+    # then mirror vertically and row bind
+    M_down <- pracma::flipud(M)
+    M <- rbind(M, M_down)
+
+  }else{ # if size is odd
+    # mirror all but last col horizontally and col bind
+    M_right <- pracma::fliplr(M[ , 1:(quad_size-1)])
+    M <- cbind(M, M_right)
+
+    # then mirror all but last row vertically and row bind
+    M_down <- pracma::flipud(M[1:(quad_size-1), ])
+    M <- rbind(M, M_down)
+
+  }
+
+  return(M)
+}
+
+# Set parameters (size, color, and background color will be user inputs eventually)
+
+# Set the size of the desired grid and calculate number of circuits
+size <- 40
+circuits <- ifelse(size %% 2 == 0, size/2, (size+1)/2)
+
+# Choose background color, #EDEFEE is paper, #000000 is black
+background <- "#EDEFEE"
+
+# Define the colors
+colors <- c(#"#EDEFEE", # Paper
+  "#1A8BB3", # Teal - no longer teal, just bright blue
+  "#0950AE", # Dark blue
+  "#4DACE5", # Light blue
+  "#126DDB", # Blue
+  "#E48DC4", # Pink
+  "#ABA9E8", # Light purple
+  "#872791", # Purple
+  "#6D1617", # Dark red
+  "#B81634", # Red
+  "#DF3B43", # Red orange
+  "#E35C47", # Orange
+  "#EB8749", # Light orange
+  "#F6E254", # Yellow
+  "#7B442D", # Brown
+  "#000000", # Black
+  "#1A6E7E", # Dark green - no longer dark green, now looks teal
+  "#7CBF7B", # Green
+  "#ADD2B8") # Light green
+
+# End user parameters
+
+# Generate the color vector
+color_vector <- generate_color_vector(size, colors)
+
+# Create a data frame for the grid coordinates
+df <- expand.grid(x = 1:size, y = 1:size)
+
+# Add the corresponding color to each grid cell coordinate
+df$color <- color_vector
+
+# Get the probability vector
+prob_vector <- get_prob_vector(circuits)
+
+# Assign probabilityes to matrix correctly
+M <- get_prob_matrix(size, prob_vector)
+
+# Apply prob matrix M to df as a vector
+df$probs <- as.vector(M)
+
+#######################
+# New stuff starts here:
+
+# Create a function that creates a new color column to replace the old one
+get_kelly_III_vector <- function(df, background){
+
+  # Write a loop that iterates over each row in df
+  for (i in 1:nrow(df)){
+
+    if (df$probs[i] == 0){
+      df$color[i] <- background
+    } else if (df$probs[i] == 1){
+      df$color[i] <- df$color[i]
+    } else {
+
+      # If the random is greater than probs, assign background, if not, do nothing
+      # grab a random number between 0 and 1
+      random <- runif(n = 1)
+
+      if (random > df$probs[i]){
+        df$color[i] <- background
+      }
+    }
+  }
+
+  return(df)
+
+}
+
+df <- get_kelly_III_vector(df, background)
+
+#######################
+# End new stuff
+
+# Plot
+kelly_colors_III <-
+  ggplot(df, aes(x = x, y = y, fill = color)) +
+  geom_tile() +  # Add tiles
+  scale_fill_identity() +  # Use the colors stored as strings in the color column
+  theme_void() +  # Remove axis labels and background
+  coord_equal()  # Use equal aspect ratio
+
+# Print the plot
+kelly_colors_III
