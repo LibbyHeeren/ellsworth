@@ -590,3 +590,254 @@ kelly_colors_III <-
 
 # Print the plot
 kelly_colors_III
+
+
+##### Create a replacement get_color_vector function
+get_color_vector <- function(size, colors){
+
+  # Define an empty size x size matrix
+  color_matrix <- matrix("", nrow = size, ncol = size)
+
+  # For loop to go row by row
+  for (i in 1:nrow(color_matrix)){
+
+    # For loop to go column by column
+    for (j in 1:ncol(color_matrix)){
+
+      # If you're in the first cell, assign a random color
+      if (i == 1 && j == 1){
+        color_matrix[i,j] <- sample(x = colors,
+                                    size = 1,
+                                    replace = TRUE)
+      } else if (i == 1 && j != 1){ # if rest of first row
+
+        # Check the color of the cell to the left
+        left_color <- color_matrix[i, j-1]
+        # Assign anything but that color to this cell
+        color_matrix[i,j] <- sample(x = colors[-which(colors == left_color)],
+                                    size = 1,
+                                    replace = TRUE)
+
+      } else if (i != 1 && j == 1){ # if in 1st col of rows 2:end
+
+        # Check the color of the cell above
+        up_color <- color_matrix[i-1, j]
+        # Assign anything but that color to this cell
+        color_matrix[i,j] <- sample(x = colors[-which(colors == up_color)],
+                                    size = 1,
+                                    replace = TRUE)
+      } else if (i != 1 && j != 1){
+
+        # Check both left and up colors
+        left_color <- color_matrix[i, j-1]
+        up_color <- color_matrix[i-1, j]
+
+        # Check if they're the same color, if so, assign other color
+        if (left_color == up_color){
+          color_matrix[i,j] <- sample(x = colors[-which(colors == up_color)],
+                                      size = 1,
+                                      replace = TRUE)
+        } else {
+
+          # If colors aren't the same, assign a random color
+          color_matrix[i,j] <- sample(x = colors,
+                                      size = 1,
+                                      replace = TRUE)
+        }
+      }
+    }
+  }
+
+  # return the color matrix as a vector
+  return(as.vector(color_matrix))
+}
+
+
+# Second try to create a replacement get_color_vector function
+get_color_vector <- function(size, colors){
+
+  # Define an empty size x size matrix
+  color_matrix <- matrix("", nrow = size, ncol = size)
+
+  # For loop to go row by row
+  for (i in 1:nrow(color_matrix)){
+
+    # For loop to go column by column
+    for (j in 1:ncol(color_matrix)){
+
+      # If you're in the first cell, assign a random color
+      if (i == 1 && j == 1){
+        color_matrix[i,j] <- sample(x = colors,
+                                    size = 1,
+                                    replace = TRUE)
+        (paste0("cell ", i, ", ", j, " filled"))
+      } else if (i == 1 && j > 1){ # if rest of first row
+
+        # Check the color of the cell to the left
+        left_color <- color_matrix[i, j-1]
+        # Assign anything but that color to this cell
+        color_matrix[i,j] <- sample(x = colors[-which(colors == left_color)],
+                                    size = 1,
+                                    replace = TRUE)
+        paste0("cell ", i, ", ", j, " filled")
+
+      } else if (i == 2 && j == 1 || j == 2){ # if in 1st or 2nd col of row 2
+
+        # Check the color of the cell above
+        up_color <- color_matrix[i-1, j]
+        # Assign anything but that color to this cell
+        color_matrix[i,j] <- sample(x = colors[-which(colors == up_color)],
+                                    size = 1,
+                                    replace = TRUE)
+        paste0("cell ", i, ", ", j, " filled")
+      } else if (i == 2 && j > 2){ # if in second row, cols 3:end
+
+        # Check both 2 left and 1 up colors, plus up_left
+        left_color1 <- color_matrix[i, j-1]
+        left_color2 <- color_matrix[i, j-2]
+        up_color <- color_matrix[i-1, j]
+        up_left_color <- color_matrix[i-1, j-1]
+
+        # Check if they're the same color, if so, assign other color
+        if (left_color1 == up_color || left_color1 == left_color2 || left_color1 == up_left_color){
+          color_matrix[i,j] <- sample(x = colors[-which(colors %in% c(up_color, left_color1))],
+                                      size = 1,
+                                      replace = TRUE)
+          paste0("cell ", i, ", ", j, " filled")
+        } else {
+
+          # If colors aren't the same, assign a random color
+          color_matrix[i,j] <- sample(x = colors,
+                                      size = 1,
+                                      replace = TRUE)
+          paste0("cell ", i, ", ", j, " filled")
+        }
+      } else if (i > 2 && j == 1){ # if in first col of rows 3 and down
+
+        # Check colors of up1 and up2
+        up_color1 <- color_matrix[i-1, j]
+        up_color2 <- color_matrix[i-2, j]
+
+        # Check if they're the same color, if so, assign other color
+        if (up_color1 == up_color2){
+          color_matrix[i,j] <- sample(x = colors[-which(colors == up_color1)],
+                                      size = 1,
+                                      replace = TRUE)
+          paste0("cell ", i, ", ", j, " filled")
+        } else {
+
+          # If colors aren't the same, assign a random color
+          color_matrix[i,j] <- sample(x = colors,
+                                      size = 1,
+                                      replace = TRUE)
+          paste0("cell ", i, ", ", j, " filled")
+        }
+      } else if (i > 2 && j > 2){ # if in row 3 and down, col 3 and over
+
+        # Check for all three conditions plus up_left
+        left_color1 <- color_matrix[i, j-1]
+        left_color2 <- color_matrix[i, j-2]
+        up_color1 <- color_matrix[i-1, j]
+        up_color2 <- color_matrix[i-2, j]
+        up_left_color <- color_matrix[i-1, j-1]
+
+        # If any matches, assign other color
+        if (left_color1 == left_color2 || left_color1 == up_color1 || up_color1 == up_color2 || up_left_color == left_color1){
+
+          color_matrix[i,j] <- sample(x = (colors[-which(colors %in% c(up_color1, left_color1))]),
+                                      size = 1,
+                                      replace = TRUE)
+          paste0("cell ", i, ", ", j, " filled")
+        } else {
+
+          # If colors aren't the same, assign a random color
+          color_matrix[i,j] <- sample(x = colors,
+                                      size = 1,
+                                      replace = TRUE)
+
+        }
+      }
+    }
+  }
+
+  # return the color matrix as a vector
+  return(as.vector(color_matrix))
+}
+
+################ THIRD TRY
+# Third try to create a replacement get_color_vector function
+get_color_vector <- function(size, colors){
+
+  # Define an empty size x size matrix
+  color_matrix <- matrix("", nrow = size, ncol = size)
+
+  # For loop to go row by row
+  for (i in 1:nrow(color_matrix)){
+
+    # For loop to go column by column
+    for (j in 1:ncol(color_matrix)){
+
+      # If you're in the first (top left) cell, assign a random color
+      if (i == 1 && j == 1){
+
+        color_matrix[i,j] <- sample(x = colors,
+                                    size = 1,
+                                    replace = TRUE)
+
+      # If you're in any other cell than the top left
+      } else {
+
+        # Get the colors of the five surrounding cells
+        left_color1 <- ifelse((j-1) > 0, color_matrix[i, j-1], "")
+        left_color2 <- ifelse((j-2) > 0, color_matrix[i, j-2], "")
+        up_color1 <- ifelse((i-1) > 0, color_matrix[i-1, j], "")
+        up_color2 <- ifelse((i-2) > 0, color_matrix[i-2, j], "")
+        up_left_color <- ifelse((j-1) > 0 && (i-1) > 1, color_matrix[i-1, j-1], "")
+        up_right_color <- ifelse((i-1) > 0 && (j+1) < (ncol(color_matrix)+1),
+                                 color_matrix[i-1, j+1], "")
+
+        # Put them in a vector called surrounding
+        surrounding <- c(left_color1,
+                         left_color2,
+                         up_color1,
+                         up_color2,
+                         up_left_color,
+                         up_right_color)
+
+        # Check to see if any of the relavent cell colors match
+        matching <- vector(mode = "character", length = 8)
+
+        matching[1] <- ifelse(left_color1 == left_color2, left_color1, "")
+        matching[2] <- ifelse(left_color1 == up_color1, left_color1, "")
+        matching[3] <- ifelse(up_color1 == up_color2, up_color1, "")
+        matching[4] <- ifelse(up_left_color == left_color1, up_left_color, "")
+        matching[5] <- ifelse(up_left_color == up_color1, up_left_color, "")
+        matching[6] <- ifelse(up_right_color == up_color1, up_right_color, "")
+        matching[7] <- ifelse(up_left_color == left_color1, up_color1, "")
+        matching[8] <- ifelse(up_left_color == up_color1, left_color1, "")
+
+
+        matching <- unique(matching[which(matching != "")])
+
+        # If there were no matches
+        if (length(matching) == 0){
+
+          # Assign any random color
+          color_matrix[i,j] <- sample(x = colors,
+                                      size = 1,
+                                      replace = TRUE)
+
+        } else { # If there WERE matches
+
+          # Assign any other color than those in matches vector
+          color_matrix[i,j] <- sample(x = colors[-which(colors %in% matching)],
+                                      size = 1,
+                                      replace = TRUE)
+        }
+      }
+    }
+  }
+  # return the color matrix as a vector
+  return(as.vector(color_matrix))
+}
+
