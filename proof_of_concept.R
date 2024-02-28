@@ -60,9 +60,11 @@ df$color <- color_vector
 kelly_colors_VII <-
   ggplot(df, aes(x = x, y = y, fill = color)) +
   geom_tile() +  # Add tiles
+  scale_y_reverse() +
   scale_fill_identity() +  # Use the colors stored as strings in the color column
   theme_void() +  # Remove axis labels and background
   coord_equal()  # Use equal aspect ratio
 
 # Print the plot
 kelly_colors_VII
+
