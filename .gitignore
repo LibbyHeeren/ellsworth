@@ -48,7 +48,4 @@ po/*~
 # RStudio Connect folder
 rsconnect/
 
-# Scrap files
-scrap.R
-scrap.qmd
-scrap.Rmd
+

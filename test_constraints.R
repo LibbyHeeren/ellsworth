@@ -1,6 +1,13 @@
 #####
 # Test the smallest size that still works with probs
 
+library(ggplot2)
+
+# Set the size of the desired grid and calculate number of circuits
+size <- 13
+circuits <- ifelse(size %% 2 == 0, size/2, (size+1)/2)
+
+
 get_prob_vector <- function(circuits){
 
   first10perc <- seq(0, 0.02857143, length.out = round(circuits*.10)+1) # 3
@@ -61,9 +68,6 @@ get_prob_matrix <- function(size, prob_vector){
 
 
 
-# Set the size of the desired grid and calculate number of circuits
-size <- 13
-circuits <- ifelse(size %% 2 == 0, size/2, (size+1)/2)
 
 # Create a data frame for the grid coordinates
 df <- expand.grid(x = 1:size, y = 1:size)

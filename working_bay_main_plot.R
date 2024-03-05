@@ -1,6 +1,6 @@
 ##########################################################################
 # Load packages
-library(tidyverse)
+library(ggplot2)
 
 # Define a function to generate a random vector of colors
 generate_color_vector <- function(size, colors) {
@@ -285,7 +285,7 @@ if(size %% 2 == 0){
 # get_prob_matrix to use flipud and fliplr from {pracma}
 
 # Load packages
-library(tidyverse)
+library(ggplot2)
 library(pracma)
 
 # Define a function to generate a random vector of colors
@@ -324,7 +324,7 @@ colors <- c(#"#EDEFEE", # Paper
   "#7CBF7B", # Green
   "#ADD2B8") # Light green
 
-# Generate the color grid
+# Generate the color vector
 color_vector <- generate_color_vector(size, colors)
 
 # Create a data frame for the grid coordinates
@@ -840,4 +840,5 @@ get_color_vector <- function(size, colors){
   # return the color matrix as a vector
   return(as.vector(color_matrix))
 }
+
 
