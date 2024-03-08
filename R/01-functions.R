@@ -1,7 +1,7 @@
 # this function gives unwanted results below and above it's mathematical
 # constraints and that's ok/expected - the user will not be able to assign a size
 # outside the appropriate range
-get_prob_vector <- function(circuits){
+get_prob_vector <- function(circuits){ # returns a vector of probs, 1 per circuit
 
   # create a vector that represents the probs of the outer 10% of circuits
   first10perc <- seq(0, 0.02857143, length.out = round(circuits*.10)+1)
@@ -27,8 +27,9 @@ get_prob_vector <- function(circuits){
   return(prob_vector)
 }
 
-
-get_prob_matrix <- function(size, prob_vector){
+# using pracma::flip functions for literate clarity of what is happening -
+# since pracma is built of base, I don't mind it being a dependency
+get_prob_matrix <- function(size, prob_vector){ # returns a matrix of probs
 
   # Calculate quad size same way as circuits
   quad_size <- ifelse(size %% 2 == 0, size/2, (size+1)/2)
@@ -43,23 +44,23 @@ get_prob_matrix <- function(size, prob_vector){
     M[i:quad_size, i] <- prob_vector[i]
   }
 
-  # if size is even,
+  # if size is even, we need to mirror the entire quad
   if(size %% 2 == 0){
     # mirror horizontally and column bind
-    M_right <- pracma::fliplr(M)
+    M_right <- pracma::fliplr(M) # fliplr means flip left-right
     M <- cbind(M, M_right)
 
     # then mirror vertically and row bind
-    M_down <- pracma::flipud(M)
+    M_down <- pracma::flipud(M) # flipud means flip up-down
     M <- rbind(M, M_down)
 
-  }else{ # if size is odd
+  }else{ # if size is odd, then we leave the last col and row out of mirroring
     # mirror all but last col horizontally and col bind
-    M_right <- pracma::fliplr(M[ , 1:(quad_size-1)])
+    M_right <- pracma::fliplr(M[ , 1:(quad_size-1)]) # fliplr means flip left-right
     M <- cbind(M, M_right)
 
     # then mirror all but last row vertically and row bind
-    M_down <- pracma::flipud(M[1:(quad_size-1), ])
+    M_down <- pracma::flipud(M[1:(quad_size-1), ]) # flipud means flip up-down
     M <- rbind(M, M_down)
 
   }
@@ -67,7 +68,7 @@ get_prob_matrix <- function(size, prob_vector){
   return(M)
 }
 
-
+# This is something I may use to simulate a different Kelly piece within same app
 get_color_vector_blobs_ok <- function(size, colors) {
 
   # Create a size^2 vector filled with a random sample of colors from a color list
@@ -79,13 +80,15 @@ get_color_vector_blobs_ok <- function(size, colors) {
 }
 
 
-
+# This is the color vector function I'll use for pieces III and VII to ensure
+# that no more than 2 of the same color are touching. It does this by checking
+# the colors of the surrounding cells that have already been assigned a color
 get_color_vector <- function(size, colors){
 
   # Define an empty size x size matrix
   color_matrix <- matrix("", nrow = size, ncol = size)
 
-  # For loop to go row by row
+  # For loop to go row by row through the empty matrix
   for (i in 1:nrow(color_matrix)){
 
     # For loop to go column by column
@@ -101,7 +104,8 @@ get_color_vector <- function(size, colors){
         # If you're in any other cell than the top left
       } else {
 
-        # Get the colors of the five surrounding cells
+        # Get the colors of the five surrounding cells, if they exist
+        # (the condition in the ifelse checks to see if they exist)
         left_color1 <- ifelse((j-1) > 0, color_matrix[i, j-1], "")
         left_color2 <- ifelse((j-2) > 0, color_matrix[i, j-2], "")
         up_color1 <- ifelse((i-1) > 0, color_matrix[i-1, j], "")
@@ -110,15 +114,9 @@ get_color_vector <- function(size, colors){
         up_right_color <- ifelse((i-1) > 0 && (j+1) < (ncol(color_matrix)+1),
                                  color_matrix[i-1, j+1], "")
 
-        # Put them in a vector called surrounding
-        surrounding <- c(left_color1,
-                         left_color2,
-                         up_color1,
-                         up_color2,
-                         up_left_color,
-                         up_right_color)
-
-        # Check to see if any of the relavent cell colors match
+        # Check to see if any of the cell colors in cells that touch match, and
+        # if they do, add the matching color to a vector of colors to be excluded
+        # from the options when we assign a color to the cell we're on
         matching <- vector(mode = "character", length = 8)
 
         matching[1] <- ifelse(left_color1 == left_color2, left_color1, "")
@@ -130,7 +128,8 @@ get_color_vector <- function(size, colors){
         matching[7] <- ifelse(up_left_color == left_color1, up_color1, "")
         matching[8] <- ifelse(up_left_color == up_color1, left_color1, "")
 
-
+        # get just the unique colors in the list of matching colors,
+        # ignoring any blank elements
         matching <- unique(matching[which(matching != "")])
 
         # If there were no matches
@@ -143,7 +142,7 @@ get_color_vector <- function(size, colors){
 
         } else { # If there WERE matches
 
-          # Assign any other color than those in matches vector
+          # Assign any other color than those in the "matches" vector
           color_matrix[i,j] <- sample(x = colors[-which(colors %in% matching)],
                                       size = 1,
                                       replace = TRUE)
@@ -164,16 +163,18 @@ get_kelly_III_vector <- function(df, background){
   # Write a loop that iterates over each row in df
   for (i in 1:nrow(df)){
 
+    # If the prob in the row is 0, assign the background color to $color col
     if (df$probs[i] == 0){
       df$color[i] <- background
-    } else if (df$probs[i] == 1){
+    } else if (df$probs[i] == 1){ # if it's 1, leave it as the color it is
       df$color[i] <- df$color[i]
-    } else {
+    } else { # if it's neither 0 nor 1, use probability to determine color/bkgrd
 
-      # If the random is greater than probs, assign background, if not, do nothing
       # grab a random number between 0 and 1
       random <- runif(n = 1)
 
+      # If the random is greater than probs, assign background,
+      # (if not, do nothing)
       if (random > df$probs[i]){
         df$color[i] <- background
       }
