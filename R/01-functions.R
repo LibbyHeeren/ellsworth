@@ -1,4 +1,4 @@
-# this function gives unwanted results below and above it's mathematical
+# this function gives unwanted results below and above its mathematical
 # constraints and that's ok/expected - the user will not be able to assign a size
 # outside the appropriate range
 get_prob_vector <- function(circuits){ # returns a vector of probs, 1 per circuit
