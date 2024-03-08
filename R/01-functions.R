@@ -1,17 +1,27 @@
+# this function gives unwanted results below and above it's mathematical
+# constraints and that's ok/expected - the user will not be able to assign a size
+# outside the appropriate range
 get_prob_vector <- function(circuits){
 
-  first10perc <- seq(0, 0.02857143, length.out = round(circuits*.10)+1) # 3
+  # create a vector that represents the probs of the outer 10% of circuits
+  first10perc <- seq(0, 0.02857143, length.out = round(circuits*.10)+1)
 
+  # calculate the length of the last 90% based on the circuits leftover after 10%
   last90perc_length <- circuits - length(first10perc)
 
-  last10perc_length <- round(last90perc_length * (1/9)) # 2
+  # calculate the length of the last 10% based on the length of the last 90%
+  last10perc_length <- length(first10perc) #round(last90perc_length * (1/9))
 
-  middle80perc_length <- last90perc_length - last10perc_length # 15
+  # calculate the length of the middle 80% based on what's leftover
+  middle80perc_length <- last90perc_length - last10perc_length
 
+  # assign probabilities linearly to the middle 80% of circuits
   middle80perc <- seq(0.02857143, 1, length.out = middle80perc_length+2)[-c(1, middle80perc_length+2)]
 
+  # assign a probability of 1 to all circuits in the last 10% (the center)
   last10perc <- rep(1, last10perc_length)
 
+  # combine the vectors into one
   prob_vector <- c(first10perc, middle80perc, last10perc)
 
   return(prob_vector)
