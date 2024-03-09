@@ -54,12 +54,12 @@ final_df <- get_kelly_III_vector(df, background)
 # Add numbers to the colors
 convert_colors_to_numbers <- function(colors) {
   # Turn colors into numbers, but assign NA to background color
-  colors <- as.numeric(factor(colors, levels = unique(colors[-which(colors == background)])))
+  color_nums <- as.numeric(factor(colors, levels = unique(colors[-which(colors == background)])))
 
   # Change all NA values to the letter "B"
-  colors <- ifelse(is.na(colors), "B", colors)
+  color_nums <- ifelse(is.na(color_nums), "B", color_nums)
 
-  return(colors)
+  return(color_nums)
 }
 
 final_df$color_numbers <- convert_colors_to_numbers(final_df$color)
@@ -81,3 +81,39 @@ paint_by_numbers <-
   theme(panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
         axis.text.x = element_text(angle = 90))
+
+# Get a df of just the unique colors and their numbers
+colors_and_numbers <- unique(final_df[,c('color','color_numbers')])
+
+# Function to plot the palette with it's numbers, based on hues::swatch()
+plot_number_swatch <- function (x) # df containing two rows, color & color numbers
+{
+  # create labels vector
+  labels <- paste0(x[[2]], ": ", x[[1]])
+
+  # set plotting parameters
+  par(
+
+    # mai specifies the margins in inches as (bottom, left, top, right)
+    mai = c(0.2, # bottom margin == .2"
+            # left margin == the width in " of the longest color+number combo name + .4"
+            max(strwidth(labels, "inch") + 0.4, na.rm = TRUE),
+            0.2, # top margin == .2"
+            0.4),# right margin == .4"
+    family = "Courier") # Just trying to ensure monospaced font
+
+  # create a bar plot
+  barplot(
+    rep(1, nrow(x)), # create as many bars (of height 1) as there are colors
+    col = rev(x[[1]]), # color the bars using the vector of colors in reverse order
+    space = 0.1, # keep 10% (.1) of each bar's height as space between the bars
+    axes = FALSE, # Don't draw an axis line
+    names.arg = rev(labels), # labels below each bar; colors vector in reverse order
+    cex.names = 0.8, # expansion factor for bar labels; shrink to 80% (.8)
+    horiz = T, # draw bars horizontally (first bar goes at the bottom)
+    las = 1) # specify the orientation of the bar labels (1 = horizontal)
+
+  return(invisible(NULL)) # don't print the plot if it's just being assigned
+}
+
+plot_number_swatch(colors_and_numbers)
