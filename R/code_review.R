@@ -126,5 +126,5 @@ swatch_plot <- plot_number_swatch(colors_and_numbers)
 # Print the plot
 swatch_plot # Wish I had a prettier monospaced font that is preinstalled in Linux
 
-# Possible future addition - use tinycolor javascript library in the app to
-# grab the string names of the colors in the palette (tinycolor.toName does this)
+# Possible future addition - use something like https://www.colorhexa.com/ to
+# return color names. I don't quite know how this website does this!
