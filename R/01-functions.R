@@ -1,6 +1,6 @@
 # this function gives unwanted results below and above its mathematical
 # constraints and that's ok/expected - the user will not be able to assign a size
-# outside the appropriate range
+# outside the appropriate range (still determining, but range = size 13 to size 60 for now)
 get_prob_vector <- function(circuits){ # returns a vector of probs, 1 per circuit
 
   # create a vector that represents the probs of the outer 10% of circuits
@@ -27,8 +27,10 @@ get_prob_vector <- function(circuits){ # returns a vector of probs, 1 per circui
   return(prob_vector)
 }
 
-# using pracma::flip functions for literate clarity of what is happening -
-# since pracma is built of base, I don't mind it being a dependency
+################################################################################
+# Function to turn the probability vector into a matrix of probabilities in the right shape
+# * using pracma::flip functions for literate clarity of what is happening -
+# since pracma is built of very simple base, I don't mind it being a dependency
 get_prob_matrix <- function(size, prob_vector){ # returns a matrix of probs
 
   # Calculate quad size same way as circuits
@@ -68,6 +70,7 @@ get_prob_matrix <- function(size, prob_vector){ # returns a matrix of probs
   return(M)
 }
 
+################################################################################
 # This is something I may use to simulate a different Kelly piece within same app
 get_color_vector_blobs_ok <- function(size, colors) {
 
@@ -79,7 +82,7 @@ get_color_vector_blobs_ok <- function(size, colors) {
   return(color_vector)
 }
 
-
+################################################################################
 # This is the color vector function I'll use for pieces III and VII to ensure
 # that no more than 2 of the same color are touching. It does this by checking
 # the colors of the surrounding cells that have already been assigned a color
@@ -155,9 +158,8 @@ get_color_vector <- function(size, colors){
 }
 
 
-
-
-
+################################################################################
+# Function to assign background colors vs colors according to probability in cell
 get_kelly_III_vector <- function(df, background){
 
   # Write a loop that iterates over each row in df
@@ -185,6 +187,19 @@ get_kelly_III_vector <- function(df, background){
 
 }
 
+################################################################################
+# Create a vector of numbers to represent colors
+convert_colors_to_numbers <- function(colors) {
+  # Turn colors into numbers, but assign NA to background color
+  color_numbers <- as.numeric(factor(colors, levels = unique(colors[-which(colors == background)])))
+
+  # Change all NA values to the letter "B"
+  color_numbers <- ifelse(is.na(color_numbers), "B", color_numbers)
+
+  return(color_numbers)
+}
+
+################################################################################
 # Plot the unique colors and their corresponding numbers
 plot_number_swatch <- function (x) # df containing two rows, color & color numbers
 {
@@ -215,3 +230,5 @@ plot_number_swatch <- function (x) # df containing two rows, color & color numbe
 
   return(invisible(NULL)) # don't print the plot if it's just being assigned
 }
+
+
