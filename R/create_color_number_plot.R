@@ -114,6 +114,6 @@ plot_number_swatch <- function (x) # df containing two rows, color & color numbe
     las = 1) # specify the orientation of the bar labels (1 = horizontal)
 
   return(invisible(NULL)) # don't print the plot if it's just being assigned
-}
+} # I'm putting this in the functions file
 
 plot_number_swatch(colors_and_numbers)
