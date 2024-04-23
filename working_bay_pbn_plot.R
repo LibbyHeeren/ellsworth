@@ -85,15 +85,15 @@ df$probs <- as.vector(M)
 final_df <- get_kelly_III_vector(df, background)
 
 #####################################################################
-# Add numbers to the colors
+# Create a vector of numbers to represent colors
 convert_colors_to_numbers <- function(colors) {
   # Turn colors into numbers, but assign NA to background color
-  colors <- as.numeric(factor(colors, levels = unique(colors[-which(colors == background)])))
+  color_numbers <- as.numeric(factor(colors, levels = unique(colors[-which(colors == background)])))
 
   # Change all NA values to the letter "B"
-  colors <- ifelse(is.na(colors), "B", colors)
+  color_numbers <- ifelse(is.na(color_numbers), "B", color_numbers)
 
-  return(colors)
+  return(color_numbers)
 }
 
 final_df$color_numbers <- convert_colors_to_numbers(final_df$color)
