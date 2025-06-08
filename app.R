@@ -4,12 +4,22 @@ library(bslib)
 library(ggplot2)
 library(pracma)
 library(markdown)
+library(grDevices) # For PDF creation
 
 # Source the file containing all the functions, assumes files are in same R folder
-source("R/01-functions.R")
+source("R/functions.R")
 
 ui <- fluidPage(
   theme = bs_theme(bootswatch = "minty"),
+
+  tags$head(
+    tags$head(
+      tags$style(HTML("
+    label.control-label {
+      font-size: 16px;
+      font-weight: bold;
+    }
+  ")))),
 
   # Center align all content
   tags$div(
@@ -17,7 +27,10 @@ ui <- fluidPage(
 
     titlePanel("An Ode to Ellsworth Kelly"),
 
-    HTML(markdown::markdownToHTML(text = "This is a very simple app with lots of fun math under the hood. Have you ever heard of [Ellsworth Kelly](https://ellsworthkelly.org/)? He created an amazing series called Spectrum Colors Arranged by Chance. He used random chance within constraints to create beautiful artwork. This app lets you recreate a grid in the style of two pieces from the series. Choose a white background to create something akin to Piece III, and choose a black background to create something like Piece IV. Each piece will be different, so if you like what you see, save it! Thanks for stopping by 👋 - [Libby Heeren](www.libbyheeren.com/blog)")),
+    HTML(markdown::markdownToHTML(text = "This app was created by [Libby Heeren](www.libbyheeren.com). It's a festival of probability and color. It was inspired by the Spectrum Colors Arranged by Chance series of artwork by [Ellsworth Kelly](https://ellsworthkelly.org/) and the fabulous Stacey, aka [The Crooked Hem](https://thecrookedhem.net/), who created a Kelly-inspired quilt and got my wheels turning. <br> <br>If you'd like to make your own quilt, you can generate one below, and even download a quilt-planning PDF. But, beware - it's random! If you see a pattern you like, save it! If you want to see the code I wrote for this app, you can go to [my GitHub repo](https://github.com/LibbyHeeren/ellsworth), and you can visit [my blog](https://libbyheeren.com/blog.html#category=Shiny) to see my development notes. <3 Libby")),
+
+    # Spacer
+    tags$br(),
 
     # Inputs
     sliderInput("size", "What size grid would you like?", min = 13, max = 60, value = 40, width = "100%"),
@@ -25,11 +38,20 @@ ui <- fluidPage(
                 choices = c("Paper White" = "#EDEFEE", "Black" = "black"),
                 selected = "#EDEFEE", width = "100%"),
 
-    # Button
-    actionButton("generate", "Calculate Art Piece", class = "btn-primary"),
+    # Spacer
+    tags$br(),
+
+    # Buttons row
+    fluidRow(
+      column(6, actionButton("generate", "Calculate Art Piece", class = "btn-primary")),
+      column(6, downloadButton("download_pdf", "Download PDF", class = "btn-primary"))
+    ),
 
     # Spacer
-    tags$br(), tags$br(),
+    tags$br(),
+
+    # Note to scroll down!
+    p("Scroll down 👇"),
 
     # Plot of the art piece
     plotOutput("art_plot", height = "800px"),
@@ -104,7 +126,7 @@ server <- function(input, output, session) {
     final_df <- get_kelly_III_vector(df, background)
 
     # Create a vector of numbers to represent colors
-    final_df$color_numbers <- convert_colors_to_numbers(final_df$color)
+    final_df$color_numbers <- convert_colors_to_numbers(final_df$color, background)
 
     # Create a vector of the unique colors and their representative numbers to swatch
     colors_and_numbers <- unique(final_df[,c('color','color_numbers')])
@@ -112,47 +134,89 @@ server <- function(input, output, session) {
     return(final_df)
   })
 
-  output$art_plot <-
-    renderPlot({
+  # Function to create the art plot
+  get_art_plot <- function(final_df) {
+
+    ggplot(final_df, aes(x = x, y = y, fill = color)) +
+      geom_tile() +  # Add tiles
+      scale_fill_identity() +  # Use the colors stored as strings in the color column
+      theme_void() +  # Remove axis labels and background
+      coord_equal()  # Use equal aspect ratio
+  }
+
+  # Function to create the paint-by-numbers plot
+  get_pbn_plot <- function(final_df) {
+    grid_size <- sqrt(nrow(final_df))
+    text_size <- 120 / grid_size
+
+
+    ggplot(final_df, aes(x = x, y = y, fill = color, label = color_numbers)) +
+      geom_tile(alpha = 0.5, color = "black") +  # Add tiles
+      geom_text(size = text_size) +
+      scale_x_continuous(position = "top",
+                         expand = c(0,0),
+                         breaks =  1:grid_size) +
+      scale_y_continuous(expand = c(0,0),
+                         breaks =  1:grid_size,
+                         labels = rev(1:grid_size)) +
+      scale_fill_identity() +  # Use the colors stored as strings in the color column
+      coord_equal() +  # Use equal aspect ratio
+      labs(x = NULL, y = NULL) +
+      theme(panel.grid.major = element_blank(),
+            panel.grid.minor = element_blank(),
+            axis.text.x = element_text(angle = 90))
+  }
+
+  # Function to create the swatch plot
+  get_swatch_plot <- function(final_df) {
+    colors_and_numbers <- unique(final_df[,c('color','color_numbers')])
+
+    plot_number_swatch(colors_and_numbers)
+  }
+
+  output$art_plot <- renderPlot({
+    final_df <- artwork_data()
+    get_art_plot(final_df)
+  })
+
+  output$pbn_plot <- renderPlot({
+    final_df <- artwork_data()
+
+    get_pbn_plot(final_df)
+  }, res = 108)
+
+  output$swatch_plot <- renderPlot({
+    final_df <- artwork_data()
+    get_swatch_plot(final_df)
+  })
+
+  # PDF download handler
+  output$download_pdf <- downloadHandler(
+    filename = function() {
+      paste("EllsworthKelly-Artwork-", format(Sys.time(), "%Y%m%d-%H%M%S"), ".pdf", sep = "")
+    },
+    content = function(file) {
       final_df <- artwork_data()
 
-      ggplot(final_df, aes(x = x, y = y, fill = color)) +
-        geom_tile() +  # Add tiles
-        scale_fill_identity() +  # Use the colors stored as strings in the color column
-        theme_void() +  # Remove axis labels and background
-        coord_equal()  # Use equal aspect ratio
-    })
+      # Recreate the swatch data inside the download function
+      colors_and_numbers <- unique(final_df[, c("color", "color_numbers")])
 
-  output$pbn_plot <-
-    renderPlot({
-      final_df <- artwork_data()
-      grid_size <- sqrt(nrow(final_df))
-      text_size <- 120 / grid_size
+      # Open the PDF device
+      pdf(file, width = 8.5, height = 11, onefile = TRUE)
 
-      ggplot(final_df, aes(x = x, y = y, fill = color, label = color_numbers)) +
-        geom_tile(alpha = 0.5, color = "black") +  # Add tiles
-        geom_text(size = text_size) +
-        scale_x_continuous(position = "top",
-                           expand = c(0,0),
-                           breaks =  1:grid_size) +
-        scale_y_continuous(expand = c(0,0),
-                        breaks =  1:grid_size,
-                        labels = rev(1:grid_size)) +
-        scale_fill_identity() +  # Use the colors stored as strings in the color column
-        coord_equal() +  # Use equal aspect ratio
-        labs(x = NULL, y = NULL) +
-        theme(panel.grid.major = element_blank(),
-              panel.grid.minor = element_blank(),
-              axis.text.x = element_text(angle = 90))
-    }, res = 108)
+      # Page 1: Art Plot
+      print(get_art_plot(final_df))
 
-  output$swatch_plot <-
-    renderPlot({
-      final_df <- artwork_data()
+      # Page 2: Paint-by-numbers Plot
+      print(get_pbn_plot(final_df))
 
+      # Page 3: Swatch Plot (base graphics)
       plot_number_swatch(colors_and_numbers)
-    })
 
+      # Close the PDF
+      dev.off()
+    }
+  )
 
 }
 

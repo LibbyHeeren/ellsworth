@@ -1,3 +1,4 @@
+
 # this function gives unwanted results below and above its mathematical
 # constraints and that's ok/expected - the user will not be able to assign a size
 # outside the appropriate range (still determining, but range = size 13 to size 60 for now)
@@ -189,7 +190,7 @@ get_kelly_III_vector <- function(df, background){
 
 ################################################################################
 # Create a vector of numbers to represent colors
-convert_colors_to_numbers <- function(colors) {
+convert_colors_to_numbers <- function(colors, background) {
   # Turn colors into numbers, but assign NA to background color
   color_numbers <- as.numeric(factor(colors, levels = unique(colors[-which(colors == background)])))
 
@@ -229,5 +230,3 @@ plot_number_swatch <- function (x) # df containing two rows, color & color numbe
 
   return(invisible(NULL)) # don't print the plot if it's just being assigned
 }
-
-
