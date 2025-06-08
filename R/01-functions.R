@@ -224,7 +224,7 @@ plot_number_swatch <- function (x) # df containing two rows, color & color numbe
     space = 0.1, # keep 10% (.1) of each bar's height as space between the bars
     axes = FALSE, # Don't draw an axis line
     names.arg = rev(labels), # labels below each bar; colors vector in reverse order
-    cex.names = 0.8, # expansion factor for bar labels; shrink to 80% (.8)
+    cex.names = 1.5, # expansion factor for bar labels;
     horiz = T, # draw bars horizontally (first bar goes at the bottom)
     las = 1) # specify the orientation of the bar labels (1 = horizontal)
 

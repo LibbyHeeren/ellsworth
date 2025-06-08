@@ -1,0 +1,549 @@
+---
+title: Code Review by Santiago Rodriquez
+subtitle: converted to quarto doc by Libby Heeren
+format: html
+---
+
+```{r}
+# Set up box
+box::use(
+  here[here],
+  bench[mark, press],
+  glue[glue]
+)
+
+# Source the functions file to load all functions
+source(here("R/01-functions.R"))
+
+# Run time checks - only once I've created a revised file
+# Need to update file locations in here()
+
+# pdf(NULL)
+# # new_runtime = system.time(source(here("original", "code_review_revised.R")))
+# invisible(dev.off())
+# 
+# pdf(NULL)
+# new_size = object.size(source(here("original", "code_review.R")))
+# invisible(dev.off())
+```
+
+# Functions
+## get_prob_matrix
+#### Initiating empty matrices  
+
+One of the steps in the get_prob_matrix function creates an empty matrix. Depending on how big the matrix is there are more efficient ways to do this. For instance, the `allocMatrix` function in the `matrixStats` library is very fast, but it would introduce a dependency.
+
+#### Error handling
+
+Testing different values of the argument size: 40, 1, 2, 0. Essentially testing how the function handles weird values of size.
+
+::: {style="color:purple;"}
+I was thinking, since it will be a Shiny app, I could just set limits on the inputs so that people could only input size as an integer between, say, 13 and 60.  
+:::
+
+```{r}
+# Explanation from Lib for blog: This code is saying, "try to make a prob matrix of a certain size and then see what the class of the resulting object is - is "matrix" in that list of classes? TRUE or FALSE?" You can run just the try call and see that it returns either a list of classes or an error
+
+"matrix" %in% try(class(get_prob_matrix(size = 40, prob_vector = get_prob_vector(20))))
+# TRUE
+
+"matrix" %in% try(class(get_prob_matrix(size = 1, prob_vector = get_prob_vector(20))))
+# FALSE
+
+"matrix" %in% try(class(get_prob_matrix(size = 2, prob_vector = get_prob_vector(20))))
+# TRUE
+
+"matrix" %in% try(class(get_prob_matrix(size = 0, prob_vector = get_prob_vector(20))))
+# FALSE
+```
+I don’t know how likely it is that the size value is 0 or 1 but there are instances where the function fails. 
+
+::: {style="color:purple;"}
+So, size 0, 1, and 2 won't be in the bounds of the Shiny input, but this is a super great way to test that I've NEVER SEEN BEFORE! If I was creating a package from this, I'd 100% want to make sure I had errors and messages handled correctly! (Could I make this a package someday???) This makes me incredibly happy. Learn-o-meter is at 2. (The first count on the Learn-o-meter was from Santiago being the first person to EVER explain why `{box}` is useful in a meaningful (to me) way by comparing it to `from <library> import <function set>` in python.) Also, note for future, Jadey says to look into the `{cli}` package for error handling!
+:::
+
+#### if vs ifelse
+
+From the documentation of the `ifelse` function:  
+
+> Further note that if(test) yes else no is much more efficient and often much preferable to ifelse(test, yes, no) whenever test is a simple true/false result, i.e., when length(test) == 1.  
+
+If size is always a scalar (length 1) not an array (length n) then if(test) yes else no will be faster, as can be seen below.  
+
+```{r}
+tmp = 40
+
+# mark() is from bench package
+mark(
+  ifelse(tmp %% 2 == 0, tmp/2, (tmp+1)/2),
+  if(tmp %% 2 == 0) tmp/2 else (tmp+1)/2,
+  iterations = 5000,
+  time_unit = "ns"
+)
+
+rm(tmp)
+```
+
+::: {style="color:purple;"}
+Mind blown 🤯 I seriously hadn't ever considered this and **definitely** hadn't read that in the documentation. That part in the docs about constructing things like this also was new to me: `tmp <- yes; tmp[!test] <- no[!test]; tmp` where yes and no are return values and test is a test expression. Learn-o-meter is at 3.
+:::
+```{r}
+# From Libby: walking through the other example of structure from the ifelse doc
+
+val <- 4
+
+# val[!val < 3] will evaluate to val if val is NOT less than three
+# val[!val < 3] will evaluate to numeric(0) if val IS less than three
+# 4 is not less than 3, so the code below evaluates to val <- 2
+# if val was 1 it would be numeric(0) <- numeric(0) and val would not be changed
+
+val[!val < 3] <- 2[!val < 3] # code runs despite an RStudio error marker
+
+val # val is now 2
+
+rm(val)
+```
+
+
+#### Simplyfing logic
+
+It appears the goal of `quad_size <- if(size %% 2 == 0) size/2 else (size+1)/2` is to ensure that quad_size is always even. If so, then perhaps there’s a simpler way to achieve the same thing. Let’s test some logic below.
+
+The below code tests different values of size: 40, 39, 100, an 99. Two approaches are tested. The first is the updated if(test) logic from above and the other is ceiling(size/2). This is simpler because it doesn’t reference size multiple times as the if(test) size/2 else (size+1)/2 code does.
+
+```{r}
+# press() is from bench package
+press(
+  tmp = c(40, 39, 100, 99),
+  {
+    mark(
+      if(tmp %% 2 == 0) tmp/2 else (tmp+1)/2,
+      ceiling(tmp/2),
+      iterations = 1000,
+      time_unit = "ns"
+    )
+  }
+)
+```
+As suspected, the ceiling() function is faster than if(test). Now, let’s confirm the two functions return the same values.
+
+```{r}
+for(i in c(40, 39, 100, 99, 99.5)){
+  print(glue(
+    "Size = {i}", " ",
+    "Original = {if(i %% 2 == 0) i/2 else (i+1)/2}", " ",
+    "Test = {ceiling(i/2)}"
+  ))
+  
+  # house cleaning
+  rm(i)
+}
+```
+In conclusion, the ceiling logic is faster and can handle non-integer size values!
+
+::: {style="color:purple;"}
+I will need to make sure my Shiny input is integer only for sure. Using `ceiling` makes perfect sense and this is a great example of why an extra set of eyes is so important when you're too deep in a project to see simple fixes easily!
+:::
+
+#### DRY - don’t repeat yourself
+
+I noticed that the code_review file had a `circuits` variable that used the same logic as the `quad_size` variable in this function, and that more than one function used this circuits/quad_size logic. So why not make `quad_size` a function argument vs re-calculating `circuits`.
+
+::: {style="color:purple;"}
+Definitely me being lazy :D I even have a note in my process documentation that says I should do this but I'm too lazy at the moment hahaha! I will definitely fix this in the final version.
+:::
+
+#### Final speed test
+In this test, we’ll compare the original function vs the updated function  
+
+```{r}
+# From Libby: The two different functions get defined, then tested to see if they
+# output the same results
+func1 <- function(size, prob_vector){
+
+  # Calculate quad size same way as circuits
+  quad_size <- ifelse(size %% 2 == 0, size/2, (size+1)/2)
+
+  # Create empty matrix for the quad
+  M <- matrix(0, nrow = quad_size, ncol = quad_size)
+
+  # For loop to assign prob_vector to correct cells in quadrant
+  for (i in 1:quad_size){
+
+    M[i, i:quad_size] <- prob_vector[i]
+    M[i:quad_size, i] <- prob_vector[i]
+  }
+
+  # if size is even, we need to mirror the entire quad
+  if(size %% 2 == 0){
+    # mirror horizontally and column bind
+    M_right <- pracma::fliplr(M) # fliplr means flip left-right
+    M <- cbind(M, M_right)
+
+    # then mirror vertically and row bind
+    M_down <- pracma::flipud(M) # flipud means flip up-down
+    M <- rbind(M, M_down)
+
+  }else{ # if size is odd, then we leave the last col and row out of mirroring
+    # mirror all but last col horizontally and col bind
+    M_right <- pracma::fliplr(M[ , 1:(quad_size-1)]) # fliplr means flip left-right
+    M <- cbind(M, M_right)
+
+    # then mirror all but last row vertically and row bind
+    M_down <- pracma::flipud(M[1:(quad_size-1), ]) # flipud means flip up-down
+    M <- rbind(M, M_down)
+
+  }
+
+  return(M)
+}
+
+func2 <- function(size, quad_size, prob_vector){
+  # Create empty matrix for the quad
+  M <- matrix(0, nrow = quad_size, ncol = quad_size)
+
+  # For loop to assign prob_vector to correct cells in quadrant
+  for (i in seq_len(quad_size)){
+
+    M[i, i:quad_size] <- prob_vector[i]
+    M[i:quad_size, i] <- prob_vector[i]
+  }
+
+  # if size is even, we need to mirror the entire quad
+  if(size %% 2 == 0){
+    # mirror horizontally and column bind
+    M_right <- pracma::fliplr(M) # fliplr means flip left-right
+    M <- cbind(M, M_right)
+
+    # then mirror vertically and row bind
+    M_down <- pracma::flipud(M) # flipud means flip up-down
+    M <- rbind(M, M_down)
+
+  }else{ # if size is odd, then we leave the last col and row out of mirroring
+    # mirror all but last col horizontally and col bind
+    M_right <- pracma::fliplr(M[ , seq_len(quad_size-1)]) # fliplr means flip left-right
+    M <- cbind(M, M_right)
+
+    # then mirror all but last row vertically and row bind
+    M_down <- pracma::flipud(M[seq_len(quad_size-1), ]) # flipud means flip up-down
+    M <- rbind(M, M_down)
+
+  }
+
+  return(M)
+}
+
+# size
+tmp = 100
+# circuits
+tmp2 = ceiling(tmp/2)
+# prob_vector
+tmp3 = get_prob_vector(tmp2)
+
+
+# test match rate
+tmpMatchRate = sum(func1(tmp, tmp3) == func2(tmp, tmp2, tmp3)) / length(func1(tmp, tmp3))
+glue("func1 output matches func2 output {round(tmpMatchRate,2)*100}%")
+# func1 output matches func2 output 100%
+```
+
+```{r}
+# speed test
+mark(
+  func1(tmp, tmp3),
+  func2(tmp, tmp2, tmp3),
+  iterations = 1000,
+  time_unit = "ns"
+)
+
+# house cleaning
+rm(func1, func2, tmp, tmp2, tmp3, tmpMatchRate)
+```
+
+Final modifications slightly reduced how long the function takes to run, simplified things via adding a functional argument, and added seq_len where appropriate.  
+
+::: {style="color:purple;"}
+I'm going to bump the Learn-o-meter to 4 because, even if my silly little app will never really need to be blazing fast, these are invaluable skills to carry forward with me into all other work I do. I'm definitely making all of these changes!
+:::
+
+## get_color_vector
+#### Seed
+
+Since the functions make use of sample it might be a good idea to set a seed so that results can be replicated. I added an argument to the function called seed. The default value is 123. However, if that’s not desired, then you could do seed = round(runif(1, 100, 10000)) to randomly assign the seed. This allows users to replicate results (assuming the seed is saved somewhere) but generates different pictures every time.
+
+::: {style="color:purple;"}
+This is a feature on my list of possible upgrades! I haven't thought of a way to integrate capturing the seed in the session info yet, but I'd like to be able to do that at some point. I like the ethereal nature of the pieces, but I do think it would be convenient to be able to recreate one I really liked. Maybe I could have a section of the app that was just for recreations. It would just ask for a "plot ID" or something, which would be the seed, and I could make sure that the seed got output somewhere obvious for each plot so the user could capture it. Hmmm. I will need to think on it.
+:::
+
+#### Testing changes
+Similar to the get_prob_matrix function above what if we replace all of the `ifelse` functions with if(test)? Additionally, the `1:nrow()` and `1:ncol()` functions were replaced with `seq_len(nrow())` and `seq_len(ncol())`. I’ll create another function `func3` to showcase faster alternatives to `unique(matching[which(matching != "")])`.
+
+```{r}
+# Do the set-up to be able to run the functions (define size and colors)
+tmp1 = 100
+tmp2 <- "#EDEFEE"
+if (tmp2 == "#EDEFEE"){ # If background is paper white
+  tmp3 <- c(#"#EDEFEE", # Paper
+    "#1A8BB3", # Teal - no longer teal, just bright blue
+    "#0950AE", # Dark blue
+    "#4DACE5", # Light blue
+    "#126DDB", # Blue
+    "#E48DC4", # Pink
+    "#ABA9E8", # Light purple
+    "#872791", # Purple
+    "#6D1617", # Dark red
+    "#B81634", # Red
+    "#DF3B43", # Red orange
+    "#E35C47", # Orange
+    "#EB8749", # Light orange
+    "#F6E254", # Yellow
+    "#7B442D", # Brown
+    "#000000", # Black
+    "#1A6E7E", # Dark green - no longer dark green, now looks teal
+    "#7CBF7B", # Green
+    "#ADD2B8") # Light green
+} else { # else (if black), remove black from colors
+  tmp3 <- c(#"#EDEFEE", # Paper
+    "#1A8BB3", # Teal - no longer teal, just bright blue
+    "#0950AE", # Dark blue
+    "#4DACE5", # Light blue
+    "#126DDB", # Blue
+    "#E48DC4", # Pink
+    "#ABA9E8", # Light purple
+    "#872791", # Purple
+    "#6D1617", # Dark red
+    "#B81634", # Red
+    "#DF3B43", # Red orange
+    "#E35C47", # Orange
+    "#EB8749", # Light orange
+    "#F6E254", # Yellow
+    "#7B442D", # Brown
+    #"#000000", # Black
+    "#1A6E7E", # Dark green - no longer dark green, now looks teal
+    "#7CBF7B", # Green
+    "#ADD2B8") # Light green
+}
+
+# I think this is the orginial, plus a seed
+func1 <- function(size, colors, seed=123){
+  # set seed
+  set.seed(seed)
+
+  # Define an empty size x size matrix
+  color_matrix <- matrix("", nrow = size, ncol = size)
+
+  # For loop to go row by row through the empty matrix
+  for (i in 1:nrow(color_matrix)){
+
+    # For loop to go column by column
+    for (j in 1:ncol(color_matrix)){
+
+      # If you're in the first (top left) cell, assign a random color
+      if (i == 1 && j == 1){
+
+        color_matrix[i,j] <- sample(x = colors,
+                                    size = 1,
+                                    replace = TRUE)
+
+        # If you're in any other cell than the top left
+      } else {
+
+        # Get the colors of the five surrounding cells, if they exist
+        # (the condition in the ifelse checks to see if they exist)
+        left_color1 <- ifelse((j-1) > 0, color_matrix[i, j-1], "")
+        left_color2 <- ifelse((j-2) > 0, color_matrix[i, j-2], "")
+        up_color1 <- ifelse((i-1) > 0, color_matrix[i-1, j], "")
+        up_color2 <- ifelse((i-2) > 0, color_matrix[i-2, j], "")
+        up_left_color <- ifelse((j-1) > 0 && (i-1) > 1, color_matrix[i-1, j-1], "")
+        up_right_color <- ifelse((i-1) > 0 && (j+1) < (ncol(color_matrix)+1),
+                                 color_matrix[i-1, j+1], "")
+
+        # Check to see if any of the cell colors in cells that touch match, and
+        # if they do, add the matching color to a vector of colors to be excluded
+        # from the options when we assign a color to the cell we're on
+        matching <- vector(mode = "character", length = 8)
+
+        matching[1] <- ifelse(left_color1 == left_color2, left_color1, "")
+        matching[2] <- ifelse(left_color1 == up_color1, left_color1, "")
+        matching[3] <- ifelse(up_color1 == up_color2, up_color1, "")
+        matching[4] <- ifelse(up_left_color == left_color1, up_left_color, "")
+        matching[5] <- ifelse(up_left_color == up_color1, up_left_color, "")
+        matching[6] <- ifelse(up_right_color == up_color1, up_right_color, "")
+        matching[7] <- ifelse(up_left_color == left_color1, up_color1, "")
+        matching[8] <- ifelse(up_left_color == up_color1, left_color1, "")
+
+        # get just the unique colors in the list of matching colors,
+        # ignoring any blank elements
+        matching <- unique(matching[which(matching != "")])
+
+        # If there were no matches
+        if (length(matching) == 0){
+
+          # Assign any random color
+          color_matrix[i,j] <- sample(x = colors,
+                                      size = 1,
+                                      replace = TRUE)
+
+        } else { # If there WERE matches
+
+          # Assign any other color than those in the "matches" vector
+          color_matrix[i,j] <- sample(x = colors[-which(colors %in% matching)],
+                                      size = 1,
+                                      replace = TRUE)
+        }
+      }
+    }
+  }
+  # return the color matrix as a vector
+  return(as.vector(color_matrix))
+}
+
+# I think this is just replacing ifelse and 1:nrow/ncol stuff
+func2 <- function(size, colors, seed=123){
+  # set seed
+  set.seed(seed)
+
+  # Define an empty size x size matrix
+  color_matrix <- matrix("", nrow = size, ncol = size)
+
+  # For loop to go row by row through the empty matrix
+  for (i in seq_len(size)){
+
+    # For loop to go column by column
+    for (j in seq_len(size)){
+
+      # If you're in the first (top left) cell, assign a random color
+      if (i == 1 && j == 1){
+
+        color_matrix[i,j] <- sample(x = colors,
+                                    size = 1,
+                                    replace = TRUE)
+
+        # If you're in any other cell than the top left
+      } else {
+
+        # Get the colors of the five surrounding cells, if they exist
+        # (the condition in the ifelse checks to see if they exist)
+        left_color1 <- if((j-1) > 0) color_matrix[i, j-1] else ""
+        left_color2 <- if((j-2) > 0) color_matrix[i, j-2] else ""
+        up_color1 <- if((i-1) > 0) color_matrix[i-1, j] else ""
+        up_color2 <- if((i-2) > 0) color_matrix[i-2, j] else ""
+        up_left_color <- if((j-1) > 0 && (i-1) > 1) color_matrix[i-1, j-1] else ""
+        up_right_color <- if((i-1) > 0 && (j+1) < (ncol(color_matrix)+1)) color_matrix[i-1, j+1] else ""
+
+        # Check to see if any of the cell colors in cells that touch match, and
+        # if they do, add the matching color to a vector of colors to be excluded
+        # from the options when we assign a color to the cell we're on
+        matching <- vector(mode = "character", length = 8)
+
+        matching[1] <- if(left_color1 == left_color2) left_color1 else ""
+        matching[2] <- if(left_color1 == up_color1) left_color1 else ""
+        matching[3] <- if(up_color1 == up_color2) up_color1 else ""
+        matching[4] <- if(up_left_color == left_color1) up_left_color else ""
+        matching[5] <- if(up_left_color == up_color1) up_left_color else ""
+        matching[6] <- if(up_right_color == up_color1) up_right_color else ""
+        matching[7] <- if(up_left_color == left_color1) up_color1 else ""
+        matching[8] <- if(up_left_color == up_color1) left_color1 else ""
+
+        # get just the unique colors in the list of matching colors,
+        # ignoring any blank elements
+        matching <- unique(matching[which(matching != "")])
+
+        # If there were no matches
+        if (length(matching) == 0){
+
+          # Assign any random color
+          color_matrix[i,j] <- sample(x = colors,
+                                      size = 1,
+                                      replace = TRUE)
+
+        } else { # If there WERE matches
+
+          # Assign any other color than those in the "matches" vector
+          color_matrix[i,j] <- sample(x = colors[-which(colors %in% matching)],
+                                      size = 1,
+                                      replace = TRUE)
+        }
+      }
+    }
+  }
+  # return the color matrix as a vector
+  return(as.vector(color_matrix))
+}
+
+# And then this one is the same as above, plus replacing the unique() call
+func3 <- function(size, colors, seed=123){
+  # set seed
+  set.seed(seed)
+
+  # Define an empty size x size matrix
+  color_matrix <- matrix("", nrow = size, ncol = size)
+
+  # For loop to go row by row through the empty matrix
+  for (i in seq_len(size)){
+
+    # For loop to go column by column
+    for (j in seq_len(size)){
+
+      # If you're in the first (top left) cell, assign a random color
+      if (i == 1 && j == 1){
+
+        color_matrix[i,j] <- sample(x = colors,
+                                    size = 1,
+                                    replace = FALSE)
+
+        # If you're in any other cell than the top left
+      } else {
+
+        # Get the colors of the five surrounding cells, if they exist
+        # (the condition in the ifelse checks to see if they exist)
+        left_color1 <- if((j-1) > 0) color_matrix[i, j-1] else ""
+        left_color2 <- if((j-2) > 0) color_matrix[i, j-2] else ""
+        up_color1 <- if((i-1) > 0) color_matrix[i-1, j] else ""
+        up_color2 <- if((i-2) > 0) color_matrix[i-2, j] else ""
+        up_left_color <- if((j-1) > 0 & (i-1) > 1) color_matrix[i-1, j-1] else ""
+        up_right_color <- if((i-1) > 0 & (j+1) < (ncol(color_matrix)+1)) color_matrix[i-1, j+1] else ""
+
+        # Check to see if any of the cell colors in cells that touch match, and
+        # if they do, add the matching color to a vector of colors to be excluded
+        # from the options when we assign a color to the cell we're on
+        matching <- vector(mode = "character", length = 8)
+
+        matching[1] <- if(left_color1 == left_color2) left_color1 else ""
+        matching[2] <- if(left_color1 == up_color1) left_color1 else ""
+        matching[3] <- if(up_color1 == up_color2) up_color1 else ""
+        matching[4] <- if(up_left_color == left_color1) up_left_color else ""
+        matching[5] <- if(up_left_color == up_color1) up_left_color else ""
+        matching[6] <- if(up_right_color == up_color1) up_right_color else ""
+        matching[7] <- if(up_left_color == left_color1) up_color1 else ""
+        matching[8] <- if(up_left_color == up_color1) left_color1 else ""
+
+        # get just the unique colors in the list of matching colors,
+        # ignoring any blank elements
+        matching <- base::setdiff(matching, "")
+
+        # If there were no matches
+        color_matrix[i,j] <- sample(
+          x = if (length(matching) == 0) colors else base::setdiff(colors, matching),
+          size = 1,
+          replace = FALSE)
+        
+      }
+    }
+  }
+  # return the color matrix as a vector
+  return(as.vector(color_matrix))
+}
+
+
+
+# speed test
+mark(
+  func1(tmp1, tmp3),
+  func2(tmp1, tmp3),
+  func3(tmp1, tmp3),
+  iterations = 20,
+  time_unit = "ns"
+)
+```
+
