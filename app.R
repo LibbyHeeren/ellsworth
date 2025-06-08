@@ -13,13 +13,18 @@ ui <- fluidPage(
   theme = bs_theme(bootswatch = "minty"),
 
   tags$head(
-    tags$head(
-      tags$style(HTML("
+    tags$style(HTML("
     label.control-label {
       font-size: 16px;
       font-weight: bold;
     }
-  ")))),
+
+    .button-wrapper {
+  margin-top: 10px;
+  margin-bottom: 10px;
+    }
+  "))
+  ),
 
   # Center align all content
   tags$div(
@@ -27,7 +32,10 @@ ui <- fluidPage(
 
     titlePanel("An Ode to Ellsworth Kelly"),
 
-    HTML(markdown::markdownToHTML(text = "This app was created by [Libby Heeren](www.libbyheeren.com). It's a festival of probability and color. It was inspired by the Spectrum Colors Arranged by Chance series of artwork by [Ellsworth Kelly](https://ellsworthkelly.org/) and the fabulous Stacey, aka [The Crooked Hem](https://thecrookedhem.net/), who created a Kelly-inspired quilt and got my wheels turning. <br> <br>If you'd like to make your own quilt, you can generate one below, and even download a quilt-planning PDF. But, beware - it's random! If you see a pattern you like, save it! If you want to see the code I wrote for this app, you can go to [my GitHub repo](https://github.com/LibbyHeeren/ellsworth), and you can visit [my blog](https://libbyheeren.com/blog.html#category=Shiny) to see my development notes. <3 Libby")),
+    # Spacer
+    tags$br(),
+
+    HTML(markdown::markdownToHTML(text = "This app was created by [Libby Heeren](www.libbyheeren.com). It's a festival of probability and color inspired by the Spectrum Colors Arranged by Chance series of artwork by [Ellsworth Kelly](https://ellsworthkelly.org/) and the fabulous Stacey, aka [The Crooked Hem](https://thecrookedhem.net/), who created a Kelly-inspired quilt and got my wheels turning. <br> <br>If you'd like to make your own quilt, you can generate one below and download a quilt-planning PDF. But, beware - it's random! If you see a pattern you like, save it! Want to see the code I wrote for this app? Visit [my GitHub repo](https://github.com/LibbyHeeren/ellsworth), and you can go to [my blog](https://libbyheeren.com/blog.html#category=Shiny) to see my development notes. <br> <br> ❤ Libby")),
 
     # Spacer
     tags$br(),
@@ -43,15 +51,15 @@ ui <- fluidPage(
 
     # Buttons row
     fluidRow(
-      column(6, actionButton("generate", "Calculate Art Piece", class = "btn-primary")),
-      column(6, downloadButton("download_pdf", "Download PDF", class = "btn-primary"))
+      column(6, div(class = "button-wrapper", actionButton("generate", "Calculate Art Piece", class = "btn-primary"))),
+      column(6, div(class = "button-wrapper", downloadButton("download_pdf", "Download PDF", class = "btn-primary")))
     ),
 
     # Spacer
     tags$br(),
 
     # Note to scroll down!
-    p("Scroll down 👇"),
+    p("Scroll down 👇 to see artwork"),
 
     # Plot of the art piece
     plotOutput("art_plot", height = "800px"),
