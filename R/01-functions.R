@@ -210,11 +210,10 @@ plot_number_swatch <- function (x) # df containing two rows, color & color numbe
   par(
 
     # mai specifies the margins in inches as (bottom, left, top, right)
-    mai = c(0.2, # bottom margin == .2"
-            # left margin == the width in " of the longest color+number combo name + .4"
-            max(strwidth(labels, "inch") + 0.4, na.rm = TRUE),
-            0.2, # top margin == .2"
-            0.4),# right margin == .4"
+    mai = c(0.5, # bottom margin
+            2.5, # left margin
+            0.5, # top margin
+            0.5),# right margin
     family = "Courier") # Just trying to ensure monospaced font
 
   # create a bar plot
@@ -224,7 +223,7 @@ plot_number_swatch <- function (x) # df containing two rows, color & color numbe
     space = 0.1, # keep 10% (.1) of each bar's height as space between the bars
     axes = FALSE, # Don't draw an axis line
     names.arg = rev(labels), # labels below each bar; colors vector in reverse order
-    cex.names = 1.5, # expansion factor for bar labels;
+    cex.names = 1.2, # expansion factor for bar labels;
     horiz = T, # draw bars horizontally (first bar goes at the bottom)
     las = 1) # specify the orientation of the bar labels (1 = horizontal)
 
