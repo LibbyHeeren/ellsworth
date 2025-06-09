@@ -51,7 +51,7 @@ ui <- fluidPage(
 
     # Buttons row
     fluidRow(
-      column(6, div(class = "button-wrapper", actionButton("generate", "Calculate Art Piece", class = "btn-primary"))),
+      column(6, div(class = "button-wrapper", actionButton("generate", "Create Art Piece", class = "btn-primary"))),
       column(6, div(class = "button-wrapper", downloadButton("download_pdf", "Download PDF", class = "btn-primary")))
     ),
 
