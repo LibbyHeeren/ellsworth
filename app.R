@@ -10,7 +10,8 @@ library(grDevices) # For PDF creation
 source("R/functions.R")
 
 ui <- fluidPage(
-  theme = bs_theme(bootswatch = "minty"),
+  theme = bs_theme(bootswatch = "lux",
+                   primary = "#3b3b3b"),
 
   tags$head(
     tags$style(HTML("
